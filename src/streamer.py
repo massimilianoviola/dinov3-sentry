@@ -67,7 +67,7 @@ class LiveStream:
             self._connect()
             return None
 
-        # For live streams, skip all frames currently waiting in the buffer
+        # For live streams, try to stay up to date
         if self.is_live:
             latest_frame = None
             # Skip up to 2 buffered frames to catch up over time without hitting a loop
@@ -97,14 +97,18 @@ class LiveStream:
 
 
 if __name__ == "__main__":
-    stream = LiveStream("https://www.youtube.com/watch?v=EvsLqQS_80E", "95/best[height<=720]")
+    stream = LiveStream(
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "bestvideo[height<=720]/best[height<=720]"
+    )
     while True:
         frame = stream.read()
         if frame is not None:
+            status_text = f"LIVE | FPS: {stream.fps:.1f}" if stream.is_live else "RECORDED"
+            cv2.putText(frame, status_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
             cv2.imshow("Stream", frame)
-        # For saved videos, use the calculated FPS delay. For live streams, use a 1ms delay.
-        wait_time = 1 if stream.is_live else int(1000 / stream.fps)
-        if cv2.waitKey(wait_time) & 0xFF == ord("q"):
-            break
+            safe_fps = stream.fps if stream.fps > 0 else 30
+            wait_time = int(1000 / safe_fps)
+            if cv2.waitKey(wait_time) & 0xFF == ord("q"):
+                break
     stream.release()
     cv2.destroyAllWindows()
