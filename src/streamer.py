@@ -6,6 +6,10 @@ import yt_dlp
 
 
 class LiveStream:
+    """Real-time frame extractor for YouTube live and recorded content. Detects stream type
+    and implements a frame skipping policy to prevent latency accumulation during live streams.
+    """
+
     def __init__(self, url, quality, max_retries=3):
         self.url = url
         self.quality = quality
