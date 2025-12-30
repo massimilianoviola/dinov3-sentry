@@ -61,7 +61,7 @@ class MahalanobisDetector:
         max_scores = np.max(train_scores, axis=0)
         std_scores = np.std(train_scores, axis=0)
         self.threshold_map = max_scores + (5 * std_scores)
-        print(f"[Detector] Ready. Global threshold avg: {np.mean(self.threshold_map):.2f}")
+        print(f"[Detector] Ready. Global threshold avg: {np.mean(self.threshold_map):.4f}")
 
         self.is_calibrated = True
         del train_scores, max_scores, std_scores
@@ -76,7 +76,6 @@ class MahalanobisDetector:
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    import numpy as np
 
     H, W, DIM = 30, 40, 384
     N_TRAIN = 100
@@ -108,7 +107,7 @@ if __name__ == "__main__":
 
     plt.subplot(1, 3, 2)
     plt.title(
-        f"Raw scores (max: {anomaly_map.max():.1f}, mean threshold: {np.mean(detector.threshold_map):.1f})"
+        f"Raw scores (max: {anomaly_map.max():.4f}, mean threshold: {np.mean(detector.threshold_map):.4f})"
     )
     plt.imshow(anomaly_map, cmap="Spectral")
     plt.colorbar()
