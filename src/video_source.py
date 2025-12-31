@@ -28,11 +28,24 @@ class VideoSource:
         self.retry_count += 1
         print(f"[VideoSource] Connection attempt {self.retry_count}/{self.max_retries}...")
 
-        # Check if the path is a local file or a yt video
-        is_local = not self.path.startswith(("http://", "https://"))
+        is_webcam = False
+        is_local = False
+
+        # Try to treat path as an integer index for webcam
+        try:
+            webcam_idx = int(self.path)
+            is_webcam = True
+        except (ValueError, TypeError):
+            is_webcam = False
+            # Check if the path is a local file or a yt video
+            is_local = not str(self.path).startswith(("http://", "https://"))
 
         try:
-            if is_local:
+            if is_webcam:
+                print(f"[VideoSource] Opening webcam index: {webcam_idx}")
+                self.cap = cv2.VideoCapture(webcam_idx)
+                self.is_live = True
+            elif is_local:
                 print(f"[VideoSource] Opening local file: {self.path}")
                 self.cap = cv2.VideoCapture(self.path)
                 self.is_live = False
