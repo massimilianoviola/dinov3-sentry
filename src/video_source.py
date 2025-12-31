@@ -1,3 +1,4 @@
+import re
 import sys
 import time
 
@@ -6,7 +7,7 @@ import yt_dlp
 
 
 class VideoSource:
-    """Frame extractor for YouTube streams (live/recorded) and local video files.
+    """Frame extractor for YouTube streams (live/recorded), local video files, and webcams.
     Implements frame skipping for live content to prevent latency accumulation.
     """
 
@@ -18,7 +19,14 @@ class VideoSource:
         self.cap = None
         self.fps = 30
         self.is_live = False
+        self.max_height = self._parse_max_height(quality)
         self._connect()
+
+    def _parse_max_height(self, quality):
+        match = re.search(r"height<=(\d+)", quality)
+        if match:
+            return int(match.group(1))
+        return None
 
     def _connect(self):
         # Stop execution when retry limit is reached
@@ -83,6 +91,16 @@ class VideoSource:
                 self.cap.release()
             self.cap = None
 
+    def _resize_frame(self, frame):
+        if self.max_height is None or frame is None:
+            return frame
+        h, w = frame.shape[:2]
+        if h <= self.max_height:
+            return frame
+        scale = self.max_height / h
+        new_w = int(w * scale)
+        return cv2.resize(frame, (new_w, self.max_height), interpolation=cv2.INTER_LANCZOS4)
+
     def read(self):
         if self.cap is None:
             # Exponential backoff calculation
@@ -104,7 +122,7 @@ class VideoSource:
                     latest_frame = frame
 
             if latest_frame is not None:
-                return latest_frame
+                return self._resize_frame(latest_frame)
 
         # Default behavior for recorded videos
         ret, frame = self.cap.read()
@@ -114,7 +132,7 @@ class VideoSource:
             self.cap.release()
             self.cap = None  # Trigger the reconnection logic on next read
             return None
-        return frame
+        return self._resize_frame(frame)
 
     def release(self):
         if self.cap:
