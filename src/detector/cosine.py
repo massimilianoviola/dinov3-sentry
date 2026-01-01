@@ -49,7 +49,7 @@ class CosineSimilarityDetector:
         # Use the max plus 5 std as the threshold
         max_scores = np.max(train_scores, axis=0)
         std_scores = np.std(train_scores, axis=0)
-        self.threshold_map = max_scores + (5 * std_scores)
+        self.threshold_map = np.maximum(max_scores, 0.5) + (5 * std_scores)
         print(f"[Detector] Ready. Global threshold avg: {np.mean(self.threshold_map):.4f}")
 
         self.is_calibrated = True
@@ -82,8 +82,8 @@ if __name__ == "__main__":
     # Generate a test frame with anomalies in 5x5 squares
     test_frame = np.random.normal(loc=0.5, scale=0.05, size=(H, W, DIM)).astype(np.float32)
     anomaly_size = 5
-    test_frame[10 : 10 + anomaly_size, 10 : 10 + anomaly_size, : DIM // 2] += 0.2
-    test_frame[20 : 20 + anomaly_size, 20 : 20 + anomaly_size, :] -= 0.2
+    test_frame[10 : 10 + anomaly_size, 10 : 10 + anomaly_size, : DIM // 2] *= -0.5
+    test_frame[20 : 20 + anomaly_size, 20 : 20 + anomaly_size, :] -= 1.5
 
     print("[Test] Predicting anomaly scores and mask...")
     anomaly_map, detection_mask = detector.predict(test_frame)
