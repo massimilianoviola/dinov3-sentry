@@ -113,8 +113,8 @@ class VideoSource:
         # For live streams, try to stay up to date
         if self.is_live:
             latest_frame = None
-            # Skip up to 2 buffered frames to catch up over time without hitting a loop
-            for _ in range(2):
+            # Skip up to 5 buffered frames to catch up over time without hitting a loop
+            for _ in range(5):
                 if not self.cap.grab():
                     break
                 ret, frame = self.cap.retrieve()
