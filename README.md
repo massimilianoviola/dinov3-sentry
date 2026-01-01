@@ -20,7 +20,7 @@ This can be used to automatically analyze footage from a camera and flag any ano
 
 ## 📺 Demo
 
-![DINOv3-Sentry demo](data/demo.mp4)
+![DINOv3-Sentry demo](data/demo.gif)
 
 *Anomaly detection identifying a deer in a forest scene, changing season in the background.*
 
