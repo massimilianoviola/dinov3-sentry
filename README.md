@@ -5,6 +5,14 @@
 Its features are augmentation invariant and robust to environmental changes (see demo), so the system only triggers when something semantically different appears in the scene.
 The detector stores a set of normal feature patterns at each location, and it flags any patch that is significantly different from the calibration set.
 
+
+## 📺 Demo
+
+![DINOv3-Sentry demo](data/demo.gif)
+
+*Anomaly detection identifying a deer in a forest scene, changing season in the background.*
+
+
 ## 💡 The idea
 
 This can be used to automatically analyze footage from a camera and flag any anomalous intervals within it.
@@ -18,11 +26,6 @@ This can be used to automatically analyze footage from a camera and flag any ano
     [00:07.83] Anomaly #1 ended (4.2s)
     ```
 
-## 📺 Demo
-
-![DINOv3-Sentry demo](data/demo.gif)
-
-*Anomaly detection identifying a deer in a forest scene, changing season in the background.*
 
 ## 🛠️ Environment setup
 
@@ -48,6 +51,7 @@ pip install -r requirements.txt
 hf auth login
 ```
 
+
 ## 🚀 Usage
 
 1. **Configure**: edit `configs/settings.yaml`:
@@ -59,6 +63,7 @@ hf auth login
    - The app will automatically calibrate on the first `config.detector.min_train_frames` frames.
    - Real-time logging of anomaly start/end times will be printed in the terminal.
    - Visual display shows the original feed and a red binary mask overlay of detected anomalies.
+
 
 ## References
 [1] DINOv3: https://arxiv.org/abs/2508.10104
