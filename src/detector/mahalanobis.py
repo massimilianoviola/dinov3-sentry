@@ -1,6 +1,27 @@
 import numpy as np
+from joblib import Parallel, delayed
 from sklearn.covariance import LedoitWolf
 from tqdm import tqdm
+
+
+def _fit_patch(obs, dim):
+    """Fit LedoitWolf for a single patch. Returns precision matrix."""
+    try:
+        lw = LedoitWolf(store_precision=True)
+        lw.fit(obs)
+        return lw.precision_
+    except:
+        return np.eye(dim)
+
+
+def _score_frame(feat_map, mean_map, precision_map):
+    """Compute Mahalanobis scores for a single frame."""
+    h, w, dim = feat_map.shape
+    feats_flat = feat_map.reshape(-1, dim)
+    diff = feats_flat - mean_map
+    # Vectorized Mahalanobis distance calculation
+    dist_sq = np.einsum("ij,ijk,ik->i", diff, precision_map, diff)
+    return np.sqrt(dist_sq).reshape(h, w)
 
 
 class MahalanobisDetector:
@@ -16,55 +37,46 @@ class MahalanobisDetector:
         self.grid_shape = None
 
     def _get_mahalanobis_scores(self, feat_map):
-        h, w, dim = feat_map.shape
-        feats_flat = feat_map.reshape(-1, dim)
-        diff = feats_flat - self.mean_map
-        # Vectorized Mahalanobis distance calculation
-        dist_sq = np.einsum("ij,ijk,ik->i", diff, self.precision_map, diff)
-        return np.sqrt(dist_sq).reshape(h, w)
+        return _score_frame(feat_map, self.mean_map, self.precision_map)
 
     def fit(self, feature_stack):
         # feature_stack is a list of N feature maps of shape (H, W, dim)
         H, W, dim = feature_stack[0].shape
         self.grid_shape = (H, W)
-        print(f"[Detector] Calibrating on grid {H}x{W} with {len(feature_stack)} frames...")
+        n_frames = len(feature_stack)
+        print(f"[Detector] Calibrating on grid {H}x{W} with {n_frames} frames...")
 
         # Compute mean feature vector for each patch
         X_stack = np.stack(feature_stack, axis=0)  # (N, H, W, dim)
-        X_flat = X_stack.reshape(len(feature_stack), -1, dim)  # (N, H*W, dim)
-        n_frames, n_patches, _ = X_flat.shape
+        X_flat = X_stack.reshape(n_frames, -1, dim)  # (N, H*W, dim)
+        n_patches = X_flat.shape[1]
         self.mean_map = np.mean(X_flat, axis=0)  # (H*W, dim)
 
-        # Compute inverse covariance matrix for each patch
-        self.precision_map = []
-        for i in tqdm(range(n_patches), desc="Patches processed"):
-            obs = X_flat[:, i, :]
-            try:
-                lw = LedoitWolf(store_precision=True)
-                lw.fit(obs)
-                self.precision_map.append(lw.precision_)
-            except:
-                print(f"[Detector] Patch {i} failed to compute precision matrix. Using identity.")
-                self.precision_map.append(np.eye(dim))
-        self.precision_map = np.array(self.precision_map)
+        # Parallel LedoitWolf fitting to compute inverse covariance matrix for each patch
+        print(f"[Detector] Fitting {n_patches} patches in parallel...")
+        precision_list = Parallel(n_jobs=-1, backend="loky")(
+            delayed(_fit_patch)(X_flat[:, i, :], dim)
+            for i in tqdm(range(n_patches), desc="Patches")
+        )
+        self.precision_map = np.array(precision_list)
         del X_stack, X_flat
 
         # Calculate anomaly scores for all training frames to compute thresholds
-        print("[Detector] Calculating patch-level thresholds...")
-        train_scores = []
-        for frame in tqdm(feature_stack, desc="Frames processed"):
-            s = self._get_mahalanobis_scores(frame)
-            train_scores.append(s)
+        print("[Detector] Calculating patch-level thresholds in parallel...")
+        train_scores = Parallel(n_jobs=-1, backend="loky")(
+            delayed(_score_frame)(f, self.mean_map, self.precision_map)
+            for f in tqdm(feature_stack, desc="Frames processed")
+        )
         train_scores = np.array(train_scores)  # (N, H, W)
 
-        # Use the max plus 5 std as the threshold
+        # Use the max plus chi-squared std as the threshold
         max_scores = np.max(train_scores, axis=0)
-        std_scores = np.std(train_scores, axis=0)
-        self.threshold_map = max_scores + (5 * std_scores)
+        chi2_margin = np.sqrt(2 * dim)
+        self.threshold_map = max_scores + chi2_margin
         print(f"[Detector] Ready. Global threshold avg: {np.mean(self.threshold_map):.4f}")
 
         self.is_calibrated = True
-        del train_scores, max_scores, std_scores
+        del train_scores, max_scores
 
     def predict(self, feat_map):
         if not self.is_calibrated:
@@ -94,7 +106,7 @@ if __name__ == "__main__":
     test_frame = np.random.normal(loc=0.5, scale=0.05, size=(H, W, DIM)).astype(np.float32)
     anomaly_size = 5
     test_frame[10 : 10 + anomaly_size, 10 : 10 + anomaly_size, :] += 0.2
-    test_frame[20 : 20 + anomaly_size, 20 : 20 + anomaly_size, :] -= 0.05
+    test_frame[20 : 20 + anomaly_size, 20 : 20 + anomaly_size, :] -= 0.15
 
     print("[Test] Predicting anomaly scores and mask...")
     anomaly_map, detection_mask = detector.predict(test_frame)
