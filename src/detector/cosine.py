@@ -49,7 +49,7 @@ class CosineSimilarityDetector:
         # Use the max plus 5 std as the threshold
         max_scores = np.max(train_scores, axis=0)
         std_scores = np.std(train_scores, axis=0)
-        self.threshold_map = np.maximum(max_scores, 0.5) + (5 * std_scores)
+        self.threshold_map = np.maximum(max_scores, 0.2) + (5 * std_scores)
         print(f"[Detector] Ready. Global threshold avg: {np.mean(self.threshold_map):.4f}")
 
         self.is_calibrated = True

@@ -124,10 +124,13 @@ def main():
         disp_h, disp_w = frame.shape[:2]
         left_view = frame
 
-        heatmap_norm = cv2.normalize(scores, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        heatmap_big = cv2.resize(heatmap_norm, (disp_w, disp_h), interpolation=cv2.INTER_NEAREST)
-        colored = cv2.applyColorMap(heatmap_big, cv2.COLORMAP_JET)
-        right_view = cv2.addWeighted(frame, 0.5, colored, 0.5, 0)
+        # Binary mask overlay on right view
+        mask_big = cv2.resize(
+            binary_mask.astype(np.uint8) * 255, (disp_w, disp_h), interpolation=cv2.INTER_NEAREST
+        )
+        colored = np.zeros_like(frame)
+        colored[mask_big > 0] = (0, 0, 255)  # Red for anomalous patches
+        right_view = cv2.addWeighted(frame, 0.7, colored, 0.3, 0)
 
         combined = np.hstack((left_view, right_view))
 
