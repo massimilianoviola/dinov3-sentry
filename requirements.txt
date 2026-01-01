@@ -1,0 +1,13 @@
+transformers>=4.57.3
+accelerate
+torch
+torchvision
+opencv-python
+yt-dlp
+scikit-learn
+joblib
+tqdm
+numpy
+pyyaml
+pillow
+matplotlib
